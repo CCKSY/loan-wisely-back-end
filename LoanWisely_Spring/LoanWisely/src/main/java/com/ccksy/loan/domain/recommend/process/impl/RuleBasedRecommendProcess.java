@@ -78,7 +78,7 @@ public class RuleBasedRecommendProcess extends AbstractRecommendProcess {
         List<ExclusionReason> warnings = new ArrayList<>();
         if (!eligibilityPolicy.isEligible(filterContext)) {
             notReady = true;
-            warnings.add(ExclusionReason.of("ELIGIBILITY_FAILED", "異붿쿇 湲곕낯 議곌굔??異⑹”?섏? ?딆뒿?덈떎."));
+            warnings.add(ExclusionReason.of("ELIGIBILITY_FAILED", "추천 기본 조건을 충족하지 않습니다."));
         }
 
         // ?꾪꽣 泥댁씤 ?곸슜: creditScore/dsr ???쒖쇅 ?ъ쑀 ?섏쭛
@@ -104,7 +104,7 @@ public class RuleBasedRecommendProcess extends AbstractRecommendProcess {
         if (candidates.isEmpty()) {
             var b = RecommendResultBuilder.notReady(command.getReproduceKey(), new NotReadyState().code())
                     .resolvedInputLevel(command.getRequestedInputLevel());
-            b = RecommendResultBuilder.addGlobalWarning(b, "NO_PRODUCT", "異붿쿇 媛?ν븳 ?곹뭹???놁뒿?덈떎.");
+            b = RecommendResultBuilder.addGlobalWarning(b, "NO_PRODUCT", "추천 가능한 상품이 없습니다.");
             for (ExclusionReason warn : warnings) {
                 b = RecommendResultBuilder.addGlobalWarning(b, warn.getCode(), warn.getMessage());
             }

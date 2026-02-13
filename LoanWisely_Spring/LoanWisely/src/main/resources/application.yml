@@ -12,8 +12,8 @@ spring:
   datasource:
     driver-class-name: oracle.jdbc.OracleDriver
     url: jdbc:oracle:thin:@localhost:1521/XE
-    username: C##PROTOV4
-    password: PROTOV4
+    username: C##LOANWISELY_MIG5
+    password: CCKSY
 
   flyway:
     enabled: true

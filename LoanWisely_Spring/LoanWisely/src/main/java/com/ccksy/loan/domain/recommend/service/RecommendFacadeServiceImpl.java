@@ -28,6 +28,7 @@ import com.ccksy.loan.domain.product.service.ProductRateQuote;
 import com.ccksy.loan.domain.product.service.ProductRateService;
 import com.ccksy.loan.domain.user.entity.UserCreditLv1;
 import com.ccksy.loan.domain.user.mapper.UserCreditLv1Mapper;
+import com.ccksy.loan.infra.elasticsearch.EsRecommendHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class RecommendFacadeServiceImpl implements RecommendFacadeService {
     private final RecoEventLogMapper recoEventLogMapper;
     private final ProductRateService productRateService;
     private final UserCreditLv1Mapper userCreditLv1Mapper;
+    private final EsRecommendHistoryService esRecommendHistoryService;
 
     @Override
     @Transactional
@@ -209,6 +211,7 @@ public class RecommendFacadeServiceImpl implements RecommendFacadeService {
                 .build();
 
         recommendHistoryMapper.insertRecommendHistory(history);
+        esRecommendHistoryService.indexAfterCommit(history);
 
         return RecommendResponse.from(result, recommendId);
     }
