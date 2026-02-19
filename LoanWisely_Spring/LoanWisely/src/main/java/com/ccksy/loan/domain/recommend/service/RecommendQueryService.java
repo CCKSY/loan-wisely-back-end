@@ -231,6 +231,12 @@ public class RecommendQueryService {
             Object levelValue = payload.get("resolvedInputLevel");
             inputLevel = asInteger(levelValue);
         }
+        if (summary == null || summary.isBlank() || summary.startsWith("state=") || !summary.contains("금리")) {
+            String computed = buildSummaryFromPayload(payload);
+            if (computed != null && !computed.isBlank()) {
+                summary = computed;
+            }
+        }
 
         String levelUsed = toLevelUsed(inputLevel);
         String levelStatus = toLevelStatus(inputLevel);
@@ -240,6 +246,84 @@ public class RecommendQueryService {
                 .levelUsed(levelUsed)
                 .levelStatus(levelStatus)
                 .build();
+    }
+
+    private String buildSummaryFromPayload(Map<String, Object> payload) {
+        if (payload == null || payload.get("items") == null) {
+            return "";
+        }
+        List<Map<String, Object>> items = objectMapper.convertValue(
+                payload.get("items"),
+                new TypeReference<List<Map<String, Object>>>() {}
+        );
+        if (items == null || items.isEmpty()) {
+            return "추천 결과가 없습니다.";
+        }
+
+        int itemCount = items.size();
+        int warningCount = 0;
+        Object warningsObj = payload.get("warnings");
+        if (warningsObj instanceof Map<?, ?> warningsMap) {
+            warningCount = warningsMap.size();
+        }
+
+        java.math.BigDecimal minRate = null;
+        java.math.BigDecimal maxRate = null;
+        java.math.BigDecimal scoreSum = java.math.BigDecimal.ZERO;
+        int scoreCount = 0;
+
+        for (Map<String, Object> item : items) {
+            Long productId = asLong(item.get("productId"));
+            java.math.BigDecimal candidateMin = asBigDecimal(item.get("minRate"));
+            java.math.BigDecimal candidateMax = candidateMin;
+            if (productId != null) {
+                ProductRateQuote quote = productRateService.getRateQuote(productId);
+                if (quote != null) {
+                    if (quote.getRateMin() != null) {
+                        candidateMin = quote.getRateMin();
+                    }
+                    if (quote.getRateMax() != null) {
+                        candidateMax = quote.getRateMax();
+                    }
+                }
+            }
+            if (candidateMin != null) {
+                minRate = minRate == null ? candidateMin : minRate.min(candidateMin);
+            }
+            if (candidateMax != null) {
+                maxRate = maxRate == null ? candidateMax : maxRate.max(candidateMax);
+            }
+
+            java.math.BigDecimal score = asBigDecimal(item.get("score"));
+            if (score != null) {
+                scoreSum = scoreSum.add(score);
+                scoreCount++;
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        String policyVersion = payload.get("policyVersion") instanceof String s ? s : "";
+        if (!policyVersion.isBlank()) {
+            sb.append("정책 ").append(policyVersion).append(" 기준으로 ");
+        }
+        sb.append(itemCount).append("개 상품이 추천되었습니다.");
+
+        if (minRate != null && maxRate != null) {
+            sb.append(" 금리 범위는 ")
+              .append(formatDecimal(minRate)).append("%~")
+              .append(formatDecimal(maxRate)).append("%입니다.");
+        }
+
+        if (scoreCount > 0) {
+            java.math.BigDecimal avgScore =
+                    scoreSum.divide(java.math.BigDecimal.valueOf(scoreCount), 4, java.math.RoundingMode.HALF_UP);
+            sb.append(" 평균 점수는 ").append(formatDecimal(avgScore)).append("입니다.");
+        }
+
+        if (warningCount > 0) {
+            sb.append(" 경고 ").append(warningCount).append("건이 있습니다.");
+        }
+        return sb.toString().trim();
     }
 
     private List<RecommendProductResponse> buildProducts(RecommendHistory history, Map<String, Object> payload, Long userId) {
@@ -427,6 +511,11 @@ public class RecommendQueryService {
             return "한도 정보 없음";
         }
         return limit.toString();
+    }
+
+    private String formatDecimal(java.math.BigDecimal value) {
+        if (value == null) return "";
+        return value.stripTrailingZeros().toPlainString();
     }
 
     private String resolveRepaymentMethod(LoanProduct product) {

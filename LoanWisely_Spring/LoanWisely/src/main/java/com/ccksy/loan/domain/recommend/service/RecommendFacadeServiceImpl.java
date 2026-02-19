@@ -243,14 +243,92 @@ public class RecommendFacadeServiceImpl implements RecommendFacadeService {
 
     private String buildExplainSummary(RecommendResult result) {
         if (result == null) return null;
-        return "state=" + safe(result.getState()) +
-                ";inputLevel=" + safe(result.getResolvedInputLevel()) +
-                ";policyVersion=" + safe(result.getPolicyVersion()) +
-                ";metaVersion=" + safe(result.getMetaVersion());
+        int itemCount = result.getItems() == null ? 0 : result.getItems().size();
+        int warningCount = result.getWarnings() == null ? 0 : result.getWarnings().size();
+
+        BigDecimal minRate = null;
+        BigDecimal maxRate = null;
+        BigDecimal scoreSum = BigDecimal.ZERO;
+        int scoreCount = 0;
+        int exclusionCount = 0;
+
+        if (result.getItems() != null) {
+            for (var item : result.getItems()) {
+                if (item == null) continue;
+                BigDecimal candidateMin = item.getMinRate();
+                BigDecimal candidateMax = item.getMinRate();
+                if (item.getProductId() != null) {
+                    ProductRateQuote quote = productRateService.getRateQuote(item.getProductId());
+                    if (quote != null) {
+                        if (quote.getRateMin() != null) {
+                            candidateMin = quote.getRateMin();
+                        }
+                        if (quote.getRateMax() != null) {
+                            candidateMax = quote.getRateMax();
+                        }
+                    }
+                }
+                if (candidateMin != null) {
+                    minRate = minRate == null ? candidateMin : minRate.min(candidateMin);
+                }
+                if (candidateMax != null) {
+                    maxRate = maxRate == null ? candidateMax : maxRate.max(candidateMax);
+                }
+                if (item.getScore() != null) {
+                    scoreSum = scoreSum.add(item.getScore());
+                    scoreCount++;
+                }
+                if (item.getExclusionReasons() != null) {
+                    exclusionCount += item.getExclusionReasons().size();
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        String policyVersion = safe(result.getPolicyVersion());
+        if (!policyVersion.isBlank()) {
+            sb.append("정책 ").append(policyVersion).append(" 기준으로 ");
+        }
+
+        if (itemCount > 0) {
+            sb.append(itemCount).append("개 상품이 추천되었습니다.");
+        } else {
+            sb.append("추천 결과가 없습니다.");
+        }
+
+        if (minRate != null && maxRate != null) {
+            sb.append(" 금리 범위는 ")
+              .append(formatDecimal(minRate)).append("%~")
+              .append(formatDecimal(maxRate)).append("%입니다.");
+        }
+
+        if (scoreCount > 0) {
+            BigDecimal avgScore = scoreSum.divide(BigDecimal.valueOf(scoreCount), 4, java.math.RoundingMode.HALF_UP);
+            sb.append(" 평균 점수는 ").append(formatDecimal(avgScore)).append("입니다.");
+        }
+
+        if (warningCount > 0) {
+            sb.append(" 경고 ").append(warningCount).append("건이 있습니다.");
+        }
+        if (exclusionCount > 0) {
+            sb.append(" 제외 사유 ").append(exclusionCount).append("건이 있습니다.");
+        }
+
+        String state = safe(result.getState());
+        if (!state.isBlank() && !"READY".equalsIgnoreCase(state)) {
+            sb.append(" 상태는 ").append(state).append("입니다.");
+        }
+
+        return sb.toString().trim();
     }
 
     private String safe(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String formatDecimal(BigDecimal value) {
+        if (value == null) return "";
+        return value.stripTrailingZeros().toPlainString();
     }
 
     private BigDecimal toBigDecimal(BigDecimal value) {
