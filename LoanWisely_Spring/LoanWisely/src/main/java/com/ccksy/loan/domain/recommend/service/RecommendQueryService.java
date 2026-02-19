@@ -1,4 +1,4 @@
-﻿package com.ccksy.loan.domain.recommend.service;
+package com.ccksy.loan.domain.recommend.service;
 
 import com.ccksy.loan.common.exception.BusinessException;
 import com.ccksy.loan.common.exception.ErrorCode;
@@ -107,7 +107,7 @@ public class RecommendQueryService {
         RecommendExplainSummaryResponse explain = buildExplainSummary(history, payload);
         List<RecommendProductResponse> products = buildProducts(history, payload, history.getUserId());
         RecommendDetailInfoResponse detail = RecommendDetailInfoResponse.builder()
-                .description(explain.getSummary() == null ? "상품 상세 정보가 표시됩니다." : explain.getSummary())
+                .description("상품 상세 정보가 표시됩니다.")
                 .monthlyPaymentExample("월 상환액 예시가 표시됩니다.")
                 .riskWarning("고위험 조건 경고 및 승인 보장 아님 고지가 표시됩니다.")
                 .build();
@@ -242,9 +242,9 @@ public class RecommendQueryService {
         String levelStatus = toLevelStatus(inputLevel);
 
         return RecommendExplainSummaryResponse.builder()
-                .summary(summary == null ? "" : summary)
-                .levelUsed(levelUsed)
-                .levelStatus(levelStatus)
+                .summary("")
+                .levelUsed("")
+                .levelStatus("")
                 .build();
     }
 
